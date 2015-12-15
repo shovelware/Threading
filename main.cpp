@@ -14,7 +14,7 @@ using namespace std;
 
 static SDL_mutex* mutti = SDL_CreateMutex();
 
-int checkEdgeThread(void* data)
+int checkEdgeFunc(void* data)
 {
 	GameObject* go = static_cast<GameObject*>(data);
 
@@ -27,7 +27,7 @@ int checkEdgeThread(void* data)
 		h = go->GetH();
 
 		SDL_LockMutex(mutti);
-
+		
 		if (x > 800)
 		{
 			go->SetX(0 - w);
@@ -55,6 +55,19 @@ int checkEdgeThread(void* data)
 	return 42;
 }
 
+int renderFunc(void* data)
+{
+	Game* g = static_cast<Game*>(data);
+	while (true)
+	{
+		SDL_LockMutex(mutti);
+		g->Render();
+		SDL_UnlockMutex(mutti);
+	}
+
+	return 24;
+}
+
 int main(int argc, char** argv){
 	DEBUG_MSG("Game Object Created");
 	
@@ -74,7 +87,7 @@ int main(int argc, char** argv){
 	lastTickTime = clock.now();
 
 	bool edgeCheckThread = false;
-	bool collisionThread = false;
+	bool renderThread = false;
 
 
 	DEBUG_MSG("Game Loop Starting......");
@@ -92,8 +105,17 @@ int main(int argc, char** argv){
 				SDL_Thread* tEdgeCheck;
 				GameObject* player = game->getPlayer();
 
-				tEdgeCheck = SDL_CreateThread(checkEdgeThread, "Edge Thread", player);
+				tEdgeCheck = SDL_CreateThread(checkEdgeFunc, "Edge Thread", player);
+				edgeCheckThread = true;
 			}
+
+			//if (!renderThread)
+			//{
+			//	SDL_Thread* tRender;
+			//
+			//	tRender = SDL_CreateThread(renderFunc, "Render Thread", game);
+			//	renderThread = true;
+			//}
 
 			game->Render();
 		}
