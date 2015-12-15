@@ -7,13 +7,16 @@ using namespace std;
 inline float randFloat(float MAX) { return static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / MAX)); };
 inline float randFloat(float MIN, float MAX) { return MIN + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (MAX - MIN))); };
 
-Game::Game() : m_running(false), gameOn_(false)
+Game::Game(bool t) : m_running(false), gameOn_(false), threading_(t)
 {
 	u = false;
 	d = false;
 	l = false;
 	r = false;
 	a = false;
+
+	time_ = 0;
+	frames_ = 0;
 }
 
 Game::~Game()
@@ -24,7 +27,7 @@ bool Game::Initialize(const char* title, int xpos, int ypos, int width, int heig
 {
 	if(SDL_Init(SDL_INIT_EVERYTHING) == 0)
 	{
-		DEBUG_MSG("SDL Init success");
+		//DEBUG_MSG("SDL Init success");
 		m_p_Window = SDL_CreateWindow(title, xpos, ypos, width, height, flags);
 
 		sw_ = width;
@@ -32,33 +35,33 @@ bool Game::Initialize(const char* title, int xpos, int ypos, int width, int heig
 
 		if(m_p_Window != 0)
 		{
-			DEBUG_MSG("Window creation success");
+			//DEBUG_MSG("Window creation success");
 			m_p_Renderer = SDL_CreateRenderer(m_p_Window, -1, 0);
 			if(m_p_Renderer != 0)
 			{
-				DEBUG_MSG("Renderer creation success");
+				//DEBUG_MSG("Renderer creation success");
 				SDL_SetRenderDrawColor(m_p_Renderer, 65, 50, 100, 255);
 			}
 			else
 			{
-				DEBUG_MSG("Renderer init fail");
+				//DEBUG_MSG("Renderer init fail");
 				return false;
 			}
 		}
 		else
 		{
-			DEBUG_MSG("Window init fail");
+			//DEBUG_MSG("Window init fail");
 			return false;
 		}
 	}
 	else
 	{
-		DEBUG_MSG("SDL init fail");
+		//DEBUG_MSG("SDL init fail");
 		return false;
 	}
 	m_running = true;
 	player_ = new Player();
-	spawnTime_ = 2000U;
+	spawnTime_ = 2000U; //< _CHANGE_ SPAWNTIME
 
 	srand(time(NULL));
 
@@ -68,7 +71,7 @@ bool Game::Initialize(const char* title, int xpos, int ypos, int width, int heig
 
 void Game::LoadContent()
 {
-	DEBUG_MSG("Loading Content");
+	//DEBUG_MSG("Loading Content");
 	m_p_Surface = SDL_LoadBMP("assets/player.bmp");
 	m_p_Texture = SDL_CreateTextureFromSurface(m_p_Renderer, m_p_Surface);
 	SDL_FreeSurface(m_p_Surface);
@@ -121,7 +124,7 @@ void Game::LoadContent()
 
 void Game::attemptAddEnemy()
 {
-	//Coin flip to spawn another
+	//_CHANGE_ ENEMY SPAWN CHANCE
 	if (randFloat(2) > 1.0f)
 	{
 		int loops = 0;
@@ -152,7 +155,10 @@ void Game::attemptAddEnemy()
 		}
 	}
 
-	cout << "Spawn Roll Failed" << endl;
+	else
+	{
+		cout << "Spawn Roll Failed" << endl;
+	}
 
 	spawnCoolDown_ = spawnTime_;
 }
@@ -165,8 +171,8 @@ void Game::addEnemy(float x, float y)
 		spawnCoolDown_ = spawnTime_;
 	}
 	
-	(--enemies_.end())->Initialize(x, y);
 	(--enemies_.end())->setTexture(nmeText);
+	(--enemies_.end())->Initialize(x, y);
 }
 
 void Game::reset()
@@ -191,14 +197,14 @@ bool Game::IsRunning()
 
 void Game::UnloadContent()
 {
-	DEBUG_MSG("Unloading Content");
+	//DEBUG_MSG("Unloading Content");
 	//delete(m_p_Texture);
 	//m_p_Texture = NULL;
 }
 
 void Game::CleanUp()
 {
-	DEBUG_MSG("Cleaning Up");
+	//DEBUG_MSG("Cleaning Up");
 	delete player_;
 	SDL_DestroyWindow(m_p_Window);
 	SDL_DestroyRenderer(m_p_Renderer);
@@ -248,8 +254,23 @@ bool Game::checkCollision(GameObject * goA, GameObject * goB)
 	b.y = goB->GetY();
 	b.w = goB->GetW();
 	b.h = goB->GetH();
+	
+	if (SDL_HasIntersection(&a, &b))
+	{
+		float choix = randFloat(4);
+		if (choix < 1)
+			cout << "\aBAP!" << endl;
+		else if (choix < 2)
+			cout << "\aPOW!" << endl;
+		else if (choix < 3)
+			cout << "\aBLIT!" << endl;
+		else if (choix < 4)
+			cout << "\aZOT!" << endl;
 
-	return SDL_HasIntersection(&a, &b);
+		return true;
+	}
+
+	else return false;
 }
 
 void Game::getHeading(GameObject* target, GameObject* position, float& x, float& y)
@@ -390,7 +411,16 @@ void Game::HandleEvents()
 void Game::Update(int dt)
 {
 	//DEBUG_MSG("Updating....");
-	
+	if (!threading_)
+	{
+		time_ += dt;
+		if (time_ >= 1000)
+		{
+			time_ -= 1000;
+			cout << "\tFPS: " << frames_ << endl;
+			frames_ = 0;
+		}
+	}
 	if (gameOn_)
 	{
 		if (spawnCoolDown_ > 0)
@@ -402,9 +432,19 @@ void Game::Update(int dt)
 		movePlayer();
 		player_->Update(dt);
 
-		//Enemy Spawn
-		//If we're not full, add one
-		if (spawnCoolDown_ <= 0 && !enemies_.size() < maxEnemies_)
+		if (!threading_)
+		{
+			checkEdge(player_);
+		}
+
+		//Spawn an enemy if we were told to
+		if (enemies_.size() < maxEnemies_ && a)
+		{
+			addEnemy(randFloat(0, 800), randFloat(0, 800));
+		}
+
+		//If we're not full and can,  add Enemy
+		if (enemies_.size() < maxEnemies_ && spawnCoolDown_ <= 0)
 		{
 			attemptAddEnemy();
 		}
@@ -461,30 +501,37 @@ void Game::Update(int dt)
 
 void Game::Render()
 {
-	SDL_RenderClear(m_p_Renderer);
-	//DEBUG_MSG("Width Source" + m_Destination.w);
-	//DEBUG_MSG("Width Destination" + m_Destination.w);
-
-	if (m_p_Renderer != nullptr && m_p_Texture != nullptr)
+	if (!threading_)
 	{
-		//Render player
-		player_->Render(m_p_Renderer);
-
-		//Render enemies
-		if (!enemies_.empty())
-		{
-			for (std::list<Enemy>::iterator e = enemies_.begin();
-			e != enemies_.end(); ++e)
-			{
-				e->Render(m_p_Renderer);
-			}
-		}
-
-		//SDL_RenderCopy(m_p_Renderer, m_p_Texture, NULL, NULL);
+		frames_++;
 	}
 
-	SDL_RenderPresent(m_p_Renderer);
+	if (m_running)
+	{
+		SDL_RenderClear(m_p_Renderer);
+		//DEBUG_MSG("Width Source" + m_Destination.w);
+		//DEBUG_MSG("Width Destination" + m_Destination.w);
 
+		if (m_p_Renderer != nullptr && m_p_Texture != nullptr)
+		{
+			//Render player
+			player_->Render(m_p_Renderer);
+
+			//Render enemies
+			if (!enemies_.empty())
+			{
+				for (std::list<Enemy>::iterator e = enemies_.begin();
+				e != enemies_.end(); ++e)
+				{
+					e->Render(m_p_Renderer);
+				}
+			}
+
+			//SDL_RenderCopy(m_p_Renderer, m_p_Texture, NULL, NULL);
+		}
+
+		SDL_RenderPresent(m_p_Renderer);
+	}
 }
 
 GameObject* Game::getPlayer()

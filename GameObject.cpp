@@ -2,12 +2,12 @@
 
 GameObject::GameObject()
 {
-	DEBUG_MSG("Character Constructor");
+	//DEBUG_MSG("Character Constructor");
 }
 
 GameObject::~GameObject()
 {
-	DEBUG_MSG("Character Destructor");
+	//DEBUG_MSG("Character Destructor");
 }
 
 void GameObject::setTexture(SDL_Texture* tex) { texture_ = tex; }

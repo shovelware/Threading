@@ -1,18 +1,19 @@
 #include "Enemy.hpp"
 
-Enemy::Enemy()
+Enemy::Enemy() : init_(false)
 {
-	DEBUG_MSG("Constructing Enemy");
+	//DEBUG_MSG("Constructing Enemy");
 }
 
 Enemy::~Enemy()
 {
-	DEBUG_MSG("Destructing Enemy");
+	//DEBUG_MSG("Destructing Enemy");
 }
 
 void Enemy::Initialize(const float x, const float y)
 {
-	DEBUG_MSG("Enemy Initializing");
+	//_CHANGE_ ENEMY PROPERTIES
+	//DEBUG_MSG("Enemy Initializing");
 	m_y = y;
 	m_x = x;
 	m_w = 32;
@@ -25,19 +26,23 @@ void Enemy::Initialize(const float x, const float y)
 
 	hpMAX_ = 1;
 	hp_ = hpMAX_;
+	init_ = true;
 }
 
 void Enemy::Render(SDL_Renderer* r)
 {
-	//DEBUG_MSG("Enemy Drawing");
+	if (init_)
+	{
+		//DEBUG_MSG("Enemy Drawing");
 
-	SDL_Rect destRect;
-	destRect.x = m_x;
-	destRect.y = m_y;
-	destRect.w = m_w;
-	destRect.h = m_h;
+		SDL_Rect destRect;
+		destRect.x = m_x;
+		destRect.y = m_y;
+		destRect.w = m_w;
+		destRect.h = m_h;
 
-	SDL_RenderCopy(r, texture_, NULL, &destRect);
+		SDL_RenderCopy(r, texture_, NULL, &destRect);
+	}
 }
 
 void Enemy::move(int x, int y)

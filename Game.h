@@ -11,7 +11,7 @@
 class Game
 {
 public:
-	Game();
+	Game(bool t);
 	~Game();
 	bool Initialize(const char*, int, int, int, int, int);
 	void LoadContent();
@@ -53,8 +53,12 @@ private:
 	bool a;
 
 	bool gameOn_;
+	bool threading_;
+	
+	int frames_;
+	int time_;
 
-	const int maxEnemies_ = 10;
+	const int maxEnemies_ = 8; // < _CHANGE_ MAXENEMIES
 	std::list<Enemy> enemies_;
 
 	void attemptAddEnemy();

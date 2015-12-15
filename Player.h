@@ -18,6 +18,7 @@ public:
 
 	void move(int x, int y);
 private:
+	bool init_;
 	float speed_;
 	int hp_;
 	int hpMAX_;

@@ -1,18 +1,19 @@
 #include "Player.h"
 
-Player::Player()
+Player::Player() : init_(false)
 {
-	DEBUG_MSG("Constructing Player");
+	//DEBUG_MSG("Constructing Player");
 }
 
 Player::~Player()
 {
-	DEBUG_MSG("Destructing Player");
+	//DEBUG_MSG("Destructing Player");
 }
 
 void Player::Initialize(const float x, const float y)
 {
-	DEBUG_MSG("Player Initializing");
+	//_CHANGE_ PLAYER PROPERTIES
+	//DEBUG_MSG("Player Initializing");
 	m_y = y;
 	m_x = x;
 	m_w = 32;
@@ -25,19 +26,23 @@ void Player::Initialize(const float x, const float y)
 
 	hpMAX_ = 4;
 	hp_ = hpMAX_;
+	init_ = true;
 }
 
 void Player::Render(SDL_Renderer* r)
 {
-	//DEBUG_MSG("Player Drawing");
+	if (init_)
+	{
+		//DEBUG_MSG("Player Drawing");
 
-	SDL_Rect destRect;
-	destRect.x = m_x;
-	destRect.y = m_y;
-	destRect.w = m_w;
-	destRect.h = m_h;
+		SDL_Rect destRect;
+		destRect.x = m_x;
+		destRect.y = m_y;
+		destRect.w = m_w;
+		destRect.h = m_h;
 
-	SDL_RenderCopy(r, texture_, NULL, &destRect);
+		SDL_RenderCopy(r, texture_, NULL, &destRect);
+	}
 }
 
 void Player::move(int x, int y)
