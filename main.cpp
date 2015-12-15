@@ -5,17 +5,61 @@
 
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_thread.h>
 
 #include "Game.h"
 #include "Player.h"
 
 using namespace std;
 
+static SDL_mutex* mutti = SDL_CreateMutex();
+
+int checkEdgeThread(void* data)
+{
+	GameObject* go = static_cast<GameObject*>(data);
+
+	while (true)
+	{
+		float x, y, w, h;
+		x = go->GetX();
+		y = go->GetY();
+		w = go->GetW();
+		h = go->GetH();
+
+		SDL_LockMutex(mutti);
+
+		if (x > 800)
+		{
+			go->SetX(0 - w);
+		}
+
+		else if (x + w < 0)
+		{
+			go->SetX(800);
+		}
+
+		//
+
+		if (y > 800)
+		{
+			go->SetY(0 - h);
+		}
+		if (y + h < 0)
+		{
+			go->SetY(800);
+		}
+
+		SDL_UnlockMutex(mutti);
+	}
+
+	return 42;
+}
+
 int main(int argc, char** argv){
 	DEBUG_MSG("Game Object Created");
 	
 	Game* game = new Game();
-	
+
 	//Adjust screen positions as needed
 	DEBUG_MSG("Game Initialising");
 	game->Initialize("ThreadGame",600,200,800,800, SDL_WINDOW_INPUT_FOCUS);
@@ -29,6 +73,10 @@ int main(int argc, char** argv){
 	chrono::steady_clock::time_point lastTickTime;
 	lastTickTime = clock.now();
 
+	bool edgeCheckThread = false;
+	bool collisionThread = false;
+
+
 	DEBUG_MSG("Game Loop Starting......");
 	while (game->IsRunning())
 	{
@@ -38,6 +86,15 @@ int main(int argc, char** argv){
 
 			game->HandleEvents();
 			game->Update(TIME_PER_TICK.count());
+
+			if (!edgeCheckThread)
+			{
+				SDL_Thread* tEdgeCheck;
+				GameObject* player = game->getPlayer();
+
+				tEdgeCheck = SDL_CreateThread(checkEdgeThread, "Edge Thread", player);
+			}
+
 			game->Render();
 		}
 	}
@@ -48,5 +105,3 @@ int main(int argc, char** argv){
 	
 	return 0;
 }
-
-

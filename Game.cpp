@@ -1,6 +1,6 @@
 #include "Game.h"
 #include <iostream>
-#include <thread>
+#include <time.h>
 
 using namespace std;
 
@@ -122,7 +122,7 @@ void Game::LoadContent()
 void Game::attemptAddEnemy()
 {
 	//Coin flip to spawn another
-	if (randFloat(2) > 1.f)
+	if (randFloat(2) > 1.0f)
 	{
 		int loops = 0;
 
@@ -131,8 +131,8 @@ void Game::attemptAddEnemy()
 		float esx = px;
 		float esy = py;
 
-		float xdist = sw_ / 8;
-		float ydist = sh_ / 8;
+		float xdist = sw_ / 2;
+		float ydist = sh_ / 2;
 
 		while (abs(esx - px) < xdist && loops < 5)
 		{
@@ -401,7 +401,6 @@ void Game::Update(int dt)
 		//Player update
 		movePlayer();
 		player_->Update(dt);
-		checkEdge(player_);
 
 		//Enemy Spawn
 		//If we're not full, add one
@@ -421,17 +420,17 @@ void Game::Update(int dt)
 				//If we're alive
 				if (e->isAlive())
 				{
-					e->Update(dt);
+					emx = 0; emy = 0;
 
-					checkEdge(&*e);
-
-					emx = 0;
-					emy = 0;
-
+					//Get direction to player
 					getHeading(player_, &*e, emx, emy);
 
+					//Enemy update
 					e->move(emx, emy);
+					e->Update(dt);
+					checkEdge(&*e);
 
+					//Collision check
 					if (checkCollision(player_, &*e))
 					{
 						player_->takeDamage(1);
@@ -486,4 +485,9 @@ void Game::Render()
 
 	SDL_RenderPresent(m_p_Renderer);
 
+}
+
+GameObject* Game::getPlayer()
+{
+	return static_cast<GameObject*>(player_);
 }

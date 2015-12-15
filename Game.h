@@ -23,6 +23,8 @@ public:
 	void HandleEvents();
 	void Update(int dt);
 	void Render();
+
+	GameObject* getPlayer();
 private:
 	bool m_running;
 	SDL_Window* m_p_Window;
