@@ -72,48 +72,55 @@ int prodEdgeCheckFunc(void* data)
 		SDL_SemWait(enemySem);
 		std::list<Enemy>& enemies = g->getEnemies();
 		////CO
-		for (std::list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
+
+		//If we've used and cleared the last set of updates
+		if (updatesBuffer.empty())
 		{
-			if (iter->isAlive())
+			//For each enemy
+			for (std::list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
 			{
-				bool addToBuffer = false;
-				SDL_Rect newRect;
-
-				newRect.x = iter->GetX();
-				newRect.y = iter->GetY();
-				newRect.w = iter->GetW();
-				newRect.h = iter->GetH();
-
-				//Check edges of enemy
-				if (newRect.x > 800)
+				//If we need to check edges
+				if (iter->isAlive())
 				{
-					addToBuffer = true;
-					newRect.x = (0 - newRect.w);
-				}
+					bool addToBuffer = false;
+					SDL_Rect newRect;
 
-				else if (newRect.x + newRect.w < 0)
-				{
-					addToBuffer = true;
-					newRect.x = 800;
-				}
+					newRect.x = iter->GetX();
+					newRect.y = iter->GetY();
+					newRect.w = iter->GetW();
+					newRect.h = iter->GetH();
 
-				//
+					//Check edges of enemy
+					if (newRect.x > 800)
+					{
+						addToBuffer = true;
+						newRect.x = (0 - newRect.w);
+					}
 
-				if (newRect.y > 800)
-				{
-					addToBuffer = true;
-					newRect.y = (0 - newRect.h);
-				}
-				if (newRect.y + newRect.h < 0)
-				{
-					addToBuffer = true;
-					newRect.y = 800;
-				}
+					else if (newRect.x + newRect.w < 0)
+					{
+						addToBuffer = true;
+						newRect.x = 800;
+					}
 
-				//Push changes to buffer if we need to
-				if (addToBuffer)
-				{
-					updatesBuffer.push_back(make_pair(&(*iter), newRect));
+					//
+
+					if (newRect.y > 800)
+					{
+						addToBuffer = true;
+						newRect.y = (0 - newRect.h);
+					}
+					if (newRect.y + newRect.h < 0)
+					{
+						addToBuffer = true;
+						newRect.y = 800;
+					}
+
+					//Push changes to buffer if we need to
+					if (addToBuffer)
+					{
+						updatesBuffer.push_back(make_pair(&(*iter), newRect));
+					}
 				}
 			}
 		}
@@ -135,8 +142,7 @@ int consEdgeCheckFunc(void* data)
 		//Lock enemies
 		SDL_SemWait(enemySem);
 		////CO
-		//for (std::pair<Enemy*, SDL_Rect>& u : updatesBuffer)
-
+		//Apply all updates to enemies
 		for (std::list<pair<Enemy*, SDL_Rect>>::iterator iter = updatesBuffer.begin(); iter != updatesBuffer.end(); iter++)
 		{
 			iter->first->SetX(iter->second.x);
@@ -145,7 +151,6 @@ int consEdgeCheckFunc(void* data)
 
 		//Clear the updates when we're done
 		updatesBuffer.clear();
-
 		////OC
 
 		//Unlock enemies
@@ -239,11 +244,22 @@ int main(int argc, char** argv)
 		}
 	}
 
+	int hundy = 0;
 	int op;
 	SDL_WaitThread(tCheckEdge, &op);
+	hundy += op;
 	SDL_WaitThread(tRender, &op);
+	hundy += op;
 	SDL_WaitThread(tProd, &op);
+	hundy += op;
 	SDL_WaitThread(tCons, &op);
+	hundy += op;
+
+	//Thread return values should add to 100
+	if (hundy == 100)
+	{
+		cout << "Threads exited successfully" << endl;
+	}
 	
 
 	//DEBUG_MSG("Calling Cleanup");
