@@ -25,6 +25,7 @@ public:
 	void Render();
 
 	GameObject* getPlayer();
+	std::list<Enemy>& getEnemies();
 private:
 	bool m_running;
 	SDL_Window* m_p_Window;
@@ -69,6 +70,7 @@ private:
 	void checkEdge(GameObject* go);
 	bool checkCollision(GameObject* goA, GameObject* goB);
 	void getHeading(GameObject* target, GameObject* position, float& x, float& y);
+
 
 	int sw_, sh_;
 

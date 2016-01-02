@@ -275,8 +275,12 @@ bool Game::checkCollision(GameObject * goA, GameObject * goB)
 
 void Game::getHeading(GameObject* target, GameObject* position, float& x, float& y)
 {
-	x = target->GetX() - position->GetX();
-	y = target->GetY() - position->GetY();
+	float newX = 0, newY = 0;
+	newX = target->GetX() - position->GetX();
+	newY = target->GetY() - position->GetY();
+
+	x = (newX < 300 ? newX : -newX);
+	y = (newY < 300 ? newY : -newY);
 }
 
 void Game::movePlayer() {
@@ -468,7 +472,11 @@ void Game::Update(int dt)
 					//Enemy update
 					e->move(emx, emy);
 					e->Update(dt);
-					checkEdge(&*e);
+
+					if (!threading_)
+					{
+						checkEdge(&*e);
+					}
 
 					//Collision check
 					if (checkCollision(player_, &*e))
@@ -537,4 +545,9 @@ void Game::Render()
 GameObject* Game::getPlayer()
 {
 	return static_cast<GameObject*>(player_);
+}
+
+std::list<Enemy>& Game::getEnemies()
+{
+	return enemies_;
 }
