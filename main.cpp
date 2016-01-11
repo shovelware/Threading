@@ -9,7 +9,51 @@
 #include "Game.h"
 #include "Player.h"
 
+typedef pair<Enemy*, SDL_Rect> enemyUpdate;
+
 //_CHANGE_ signifies a game-important variable, ctrl+f
+
+class BoundedBuffer {
+public:
+	BoundedBuffer() :
+		front(0),
+		back(0),
+		empty(SDL_CreateSemaphore(bufsize)),
+		full(SDL_CreateSemaphore(0))
+	{}
+
+	enemyUpdate take()
+	{
+		SDL_SemWait(full);
+		//CO
+		enemyUpdate result = make_pair(buffer[front].first, buffer[front].second);
+		front = (front + 1) % bufsize;
+		//OC
+		SDL_SemPost(empty);
+		return result;
+	}
+
+	void put(enemyUpdate d)
+	{
+
+		SDL_SemWait(empty);
+		//CO
+		buffer[back] = d; 
+		back = (back + 1) % bufsize;
+		//OC
+		SDL_SemPost(full);
+	}
+
+private:
+	static const int bufsize = 4;
+	enemyUpdate buffer[bufsize];
+	
+	int front;
+	int back;
+
+	SDL_semaphore* empty;
+	SDL_semaphore* full;
+};
 
 using namespace std;
 
@@ -17,7 +61,7 @@ static SDL_mutex* mutti = SDL_CreateMutex();
 
 static SDL_semaphore* enemySem = SDL_CreateSemaphore(1);
 
-std::list<pair<Enemy*, SDL_Rect>> updatesBuffer;
+BoundedBuffer updatesBuffer = BoundedBuffer();
 
 int checkEdgeFunc(void* data)
 {
@@ -69,65 +113,61 @@ int prodEdgeCheckFunc(void* data)
 	while (g->IsRunning())
 	{
 		//Lock enemies
-		SDL_SemWait(enemySem);
-		std::list<Enemy>& enemies = g->getEnemies();
+		//SDL_SemWait(enemySem);
 		////CO
-
-		//If we've used and cleared the last set of updates
-		if (updatesBuffer.empty())
-		{
+		std::list<Enemy>& enemies = g->getEnemies();
 			//For each enemy
-			for (std::list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
+		for (std::list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
+		{
+			//If we need to check edges
+			if (iter->isAlive())
 			{
-				//If we need to check edges
-				if (iter->isAlive())
+				bool addToBuffer = false;
+				SDL_Rect newRect;
+
+				newRect.x = iter->GetX();
+				newRect.y = iter->GetY();
+				newRect.w = iter->GetW();
+				newRect.h = iter->GetH();
+
+				//Check edges of enemy
+				if (newRect.x > 800)
 				{
-					bool addToBuffer = false;
-					SDL_Rect newRect;
+					addToBuffer = true;
+					newRect.x = (0 - newRect.w);
+				}
 
-					newRect.x = iter->GetX();
-					newRect.y = iter->GetY();
-					newRect.w = iter->GetW();
-					newRect.h = iter->GetH();
+				else if (newRect.x + newRect.w < 0)
+				{
+					addToBuffer = true;
+					newRect.x = 800;
+				}
 
-					//Check edges of enemy
-					if (newRect.x > 800)
-					{
-						addToBuffer = true;
-						newRect.x = (0 - newRect.w);
-					}
+				//
 
-					else if (newRect.x + newRect.w < 0)
-					{
-						addToBuffer = true;
-						newRect.x = 800;
-					}
+				if (newRect.y > 800)
+				{
+					addToBuffer = true;
+					newRect.y = (0 - newRect.h);
+				}
+				if (newRect.y + newRect.h < 0)
+				{
+					addToBuffer = true;
+					newRect.y = 800;
+				}
 
-					//
-
-					if (newRect.y > 800)
-					{
-						addToBuffer = true;
-						newRect.y = (0 - newRect.h);
-					}
-					if (newRect.y + newRect.h < 0)
-					{
-						addToBuffer = true;
-						newRect.y = 800;
-					}
-
-					//Push changes to buffer if we need to
-					if (addToBuffer)
-					{
-						updatesBuffer.push_back(make_pair(&(*iter), newRect));
-					}
+				//Push changes to buffer if we need to
+				if (addToBuffer)
+				{
+					updatesBuffer.put(make_pair(&(*iter), newRect));
 				}
 			}
 		}
+		
 		////OC
 
 		//Unlock enemies
-		SDL_SemPost(enemySem);
+		//SDL_SemPost(enemySem);
 	}
 
 	return 15;
@@ -140,21 +180,15 @@ int consEdgeCheckFunc(void* data)
 	while (g->IsRunning())
 	{
 		//Lock enemies
-		SDL_SemWait(enemySem);
+		//SDL_SemWait(enemySem);
 		////CO
-		//Apply all updates to enemies
-		for (std::list<pair<Enemy*, SDL_Rect>>::iterator iter = updatesBuffer.begin(); iter != updatesBuffer.end(); iter++)
-		{
-			iter->first->SetX(iter->second.x);
-			iter->first->SetY(iter->second.y);
-		}
-
-		//Clear the updates when we're done
-		updatesBuffer.clear();
+		enemyUpdate u = updatesBuffer.take();
+		u.first->SetX(u.second.x);
+		u.first->SetY(u.second.y);
 		////OC
 
 		//Unlock enemies
-		SDL_SemPost(enemySem);
+		//SDL_SemPost(enemySem);
 	}
 
 	return 19;
@@ -258,7 +292,7 @@ int main(int argc, char** argv)
 	//Thread return values should add to 100
 	if (hundy == 100)
 	{
-		cout << "Threads exited successfully" << endl;
+		std::cout << "Threads exited successfully" << endl;
 	}
 	
 
