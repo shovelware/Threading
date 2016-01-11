@@ -18,30 +18,38 @@ public:
 	BoundedBuffer() :
 		front(0),
 		back(0),
-		empty(SDL_CreateSemaphore(bufsize)),
-		full(SDL_CreateSemaphore(0))
+		count(0),
+		not_empty(SDL_CreateSemaphore(bufsize)),
+		not_full(SDL_CreateSemaphore(0))
 	{}
 
 	enemyUpdate take()
 	{
-		SDL_SemWait(full);
+		while (count == 0)
+		{
+			SDL_SemWait(not_full);
+		}
 		//CO
 		enemyUpdate result = make_pair(buffer[front].first, buffer[front].second);
 		front = (front + 1) % bufsize;
 		//OC
-		SDL_SemPost(empty);
+		SDL_SemPost(not_empty);
+		count--;
 		return result;
 	}
 
 	void put(enemyUpdate d)
 	{
-
-		SDL_SemWait(empty);
+		while (count == bufsize - 1)
+		{
+			SDL_SemWait(not_empty);
+		}
 		//CO
 		buffer[back] = d; 
 		back = (back + 1) % bufsize;
+		count++;
 		//OC
-		SDL_SemPost(full);
+		SDL_SemPost(not_full);
 	}
 
 private:
@@ -50,9 +58,10 @@ private:
 	
 	int front;
 	int back;
+	int count;
 
-	SDL_semaphore* empty;
-	SDL_semaphore* full;
+	SDL_semaphore* not_empty;
+	SDL_semaphore* not_full;
 };
 
 using namespace std;
@@ -112,9 +121,6 @@ int prodEdgeCheckFunc(void* data)
 
 	while (g->IsRunning())
 	{
-		//Lock enemies
-		//SDL_SemWait(enemySem);
-		////CO
 		std::list<Enemy>& enemies = g->getEnemies();
 			//For each enemy
 		for (std::list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
@@ -163,11 +169,6 @@ int prodEdgeCheckFunc(void* data)
 				}
 			}
 		}
-		
-		////OC
-
-		//Unlock enemies
-		//SDL_SemPost(enemySem);
 	}
 
 	return 15;
@@ -179,16 +180,9 @@ int consEdgeCheckFunc(void* data)
 
 	while (g->IsRunning())
 	{
-		//Lock enemies
-		//SDL_SemWait(enemySem);
-		////CO
 		enemyUpdate u = updatesBuffer.take();
 		u.first->SetX(u.second.x);
 		u.first->SetY(u.second.y);
-		////OC
-
-		//Unlock enemies
-		//SDL_SemPost(enemySem);
 	}
 
 	return 19;
@@ -277,24 +271,6 @@ int main(int argc, char** argv)
 			}
 		}
 	}
-
-	int hundy = 0;
-	int op;
-	SDL_WaitThread(tCheckEdge, &op);
-	hundy += op;
-	SDL_WaitThread(tRender, &op);
-	hundy += op;
-	SDL_WaitThread(tProd, &op);
-	hundy += op;
-	SDL_WaitThread(tCons, &op);
-	hundy += op;
-
-	//Thread return values should add to 100
-	if (hundy == 100)
-	{
-		std::cout << "Threads exited successfully" << endl;
-	}
-	
 
 	//DEBUG_MSG("Calling Cleanup");
 	game->CleanUp();
