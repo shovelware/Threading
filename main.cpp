@@ -1,5 +1,4 @@
 #include <iostream>
-#include <thread>
 #include <string>
 #include <chrono>
 
@@ -19,22 +18,24 @@ public:
 		front(0),
 		back(0),
 		count(0),
-		not_empty(SDL_CreateSemaphore(bufsize)),
-		not_full(SDL_CreateSemaphore(0))
+		not_empty(SDL_CreateSemaphore(0)),
+		not_full(SDL_CreateSemaphore(bufsize))
 	{}
 
 	enemyUpdate take()
 	{
 		while (count == 0)
 		{
-			SDL_SemWait(not_full);
+			SDL_SemWait(not_empty);
 		}
+		if (SDL_LockMutex(mutter) == 0);
 		//CO
 		enemyUpdate result = make_pair(buffer[front].first, buffer[front].second);
 		front = (front + 1) % bufsize;
-		//OC
-		SDL_SemPost(not_empty);
 		count--;
+		//OC
+		SDL_UnlockMutex(mutter);
+		SDL_SemPost(not_full);
 		return result;
 	}
 
@@ -42,15 +43,20 @@ public:
 	{
 		while (count == bufsize - 1)
 		{
-			SDL_SemWait(not_empty);
+			SDL_SemWait(not_full);
 		}
+		if (SDL_LockMutex(mutter) == 0)
 		//CO
 		buffer[back] = d; 
 		back = (back + 1) % bufsize;
 		count++;
 		//OC
-		SDL_SemPost(not_full);
+		SDL_UnlockMutex(mutter);
+		SDL_SemPost(not_empty);
 	}
+
+	~BoundedBuffer() { SDL_DestroySemaphore(not_empty); SDL_DestroySemaphore(not_full); SDL_DestroyMutex(mutter); }
+	BoundedBuffer(const BoundedBuffer&) {}
 
 private:
 	static const int bufsize = 4;
@@ -62,6 +68,7 @@ private:
 
 	SDL_semaphore* not_empty;
 	SDL_semaphore* not_full;
+	SDL_mutex* mutter = SDL_CreateMutex();
 };
 
 using namespace std;
@@ -275,6 +282,9 @@ int main(int argc, char** argv)
 	//DEBUG_MSG("Calling Cleanup");
 	game->CleanUp();
 	game->UnloadContent();
+
+	SDL_DestroySemaphore(enemySem);
+	SDL_DestroyMutex(mutti);
 	
 	return 0;
 }
