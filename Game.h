@@ -7,6 +7,7 @@
 
 #include "Player.h"
 #include "Enemy.hpp"
+#include "Command.hpp"
 
 class Game
 {
@@ -53,6 +54,10 @@ private:
 	bool r;
 	bool a;
 
+	//Command pattern
+
+	MoveCommand* cmdMove;
+
 	bool gameOn_;
 	bool threading_;
 	
@@ -64,6 +69,7 @@ private:
 
 	void attemptAddEnemy();
 	void addEnemy(float x, float y);
+	void addRandEnemy();
 	void reset();
 	void end();
 

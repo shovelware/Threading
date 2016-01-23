@@ -230,7 +230,7 @@ int renderFunc(void* data)
 int main(int argc, char** argv)
 {
 	//ENABLE OR DISABLE THREADING
-	bool threading = true;
+	bool threading = false;
 	//_CHANGE_ HERE ^^^
 	
 	//DEBUG_MSG("Game Object Created");

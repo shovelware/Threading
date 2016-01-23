@@ -15,12 +15,15 @@ Game::Game(bool t) : m_running(false), gameOn_(false), threading_(t)
 	r = false;
 	a = false;
 
+	cmdMove = new MoveCommand();
+
 	time_ = 0;
 	frames_ = 0;
 }
 
 Game::~Game()
 {
+	delete cmdMove;
 }
 
 bool Game::Initialize(const char* title, int xpos, int ypos, int width, int height, int flags)
@@ -175,6 +178,11 @@ void Game::addEnemy(float x, float y)
 	(--enemies_.end())->Initialize(x, y);
 }
 
+void Game::addRandEnemy()
+{
+	addEnemy(randFloat(0, 800), randFloat(0, 800));
+}
+
 void Game::reset()
 {
 	enemies_.clear();
@@ -306,7 +314,8 @@ void Game::movePlayer() {
 			y = 1;
 	}
 
-	player_->move(x, y);
+	//Command execute
+	cmdMove->execute(*player_, x, y);
 }
 
 void Game::HandleEvents()
@@ -444,7 +453,8 @@ void Game::Update(int dt)
 		//Spawn an enemy if we were told to
 		if (enemies_.size() < maxEnemies_ && a)
 		{
-			addEnemy(randFloat(0, 800), randFloat(0, 800));
+			addRandEnemy();
+			//action execute
 		}
 
 		//If we're not full and can,  add Enemy
@@ -470,7 +480,9 @@ void Game::Update(int dt)
 					getHeading(player_, &*e, emx, emy);
 
 					//Enemy update
-					e->move(emx, emy);
+					if (!a)
+						cmdMove->execute(*e, emx, emy);
+					else cmdMove->execute(*e, -emx, -emy);
 					e->Update(dt);
 
 					if (!threading_)

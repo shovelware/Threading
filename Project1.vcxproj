@@ -70,6 +70,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Actor.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="Game.cpp" />
@@ -78,6 +79,8 @@
     <ClCompile Include="Vector2D.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Actor.hpp" />
+    <ClInclude Include="Command.hpp" />
     <ClInclude Include="Enemy.hpp" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Debug.h" />
