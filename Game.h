@@ -23,6 +23,7 @@ public:
 
 	void HandleEvents();
 	void Update(int dt);
+	void RenderHUD(std::string, int x, int y);
 	void Render();
 
 	GameObject* getPlayer();
@@ -44,6 +45,9 @@ private:
 
 	SDL_Surface* nmeSurf;
 	SDL_Texture* nmeText;
+
+	SDL_Surface* bangSurf;
+	SDL_Texture* bangText;
 
 	Player* player_;
 
@@ -77,7 +81,7 @@ private:
 	bool checkCollision(GameObject* goA, GameObject* goB);
 	void getHeading(GameObject* target, GameObject* position, float& x, float& y);
 
-
+	int score_;
 	int sw_, sh_;
 
 	int spawnCoolDown_;

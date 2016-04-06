@@ -7,7 +7,7 @@ using namespace std;
 inline float randFloat(float MAX) { return static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / MAX)); };
 inline float randFloat(float MIN, float MAX) { return MIN + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (MAX - MIN))); };
 
-Game::Game(bool t) : m_running(false), gameOn_(false), threading_(t)
+Game::Game(bool t) : m_running(false), gameOn_(false), score_(0), threading_(t)
 {
 	u = false;
 	d = false;
@@ -123,6 +123,10 @@ void Game::LoadContent()
 		DEBUG_MSG("Texture Query Failed");
 		m_running = false;
 	}
+
+	bangSurf = SDL_LoadBMP("assets/bang.bmp");
+	bangText = SDL_CreateTextureFromSurface(m_p_Renderer, bangSurf);
+	SDL_FreeSurface(bangSurf);
 }
 
 void Game::attemptAddEnemy()
@@ -265,15 +269,18 @@ bool Game::checkCollision(GameObject * goA, GameObject * goB)
 	
 	if (SDL_HasIntersection(&a, &b))
 	{
-		float choix = randFloat(4);
-		if (choix < 1)
-			cout << "\aBAP!" << endl;
-		else if (choix < 2)
-			cout << "\aPOW!" << endl;
-		else if (choix < 3)
-			cout << "\aBLIT!" << endl;
-		else if (choix < 4)
-			cout << "\aZOT!" << endl;
+		if (!threading_)
+		{
+			float choix = randFloat(4);
+			if (choix < 1)
+				cout << "\aBAP!" << endl;
+			else if (choix < 2)
+				cout << "\aPOW!" << endl;
+			else if (choix < 3)
+				cout << "\aBLIT!" << endl;
+			else if (choix < 4)
+				cout << "\aZOT!" << endl;
+		}
 
 		return true;
 	}
@@ -424,16 +431,17 @@ void Game::HandleEvents()
 void Game::Update(int dt)
 {
 	//DEBUG_MSG("Updating....");
-	if (!threading_)
-	{
-		time_ += dt;
-		if (time_ >= 1000)
-		{
-			time_ -= 1000;
-			cout << "\tFPS: " << frames_ << endl;
-			frames_ = 0;
-		}
-	}
+	//if (!threading_)
+	//{
+	//	time_ += dt;
+	//	if (time_ >= 1000)
+	//	{
+	//		time_ -= 1000;
+	//		cout << "\tFPS: " << frames_ << endl;
+	//		frames_ = 0;
+	//	}
+	//}
+
 	if (gameOn_)
 	{
 		if (spawnCoolDown_ > 0)
@@ -445,7 +453,7 @@ void Game::Update(int dt)
 		movePlayer();
 		player_->Update(dt);
 
-		if (!threading_)
+		//if (!threading_)
 		{
 			checkEdge(player_);
 		}
@@ -484,15 +492,12 @@ void Game::Update(int dt)
 						cmdMove->execute(*e, emx, emy);
 					else cmdMove->execute(*e, -emx, -emy);
 					e->Update(dt);
-
-					if (!threading_)
-					{
-						checkEdge(&*e);
-					}
+					checkEdge(&*e);
 
 					//Collision check
 					if (checkCollision(player_, &*e))
 					{
+						score_++;
 						player_->takeDamage(1);
 						e->takeDamage(1);
 					}
@@ -519,12 +524,33 @@ void Game::Update(int dt)
 	}
 }
 
+void Game::RenderHUD(std::string str, int x, int y)
+{
+	int size = 10;
+
+	SDL_Rect destRect;
+	destRect.x = x - size;
+	destRect.y = y - size;
+	destRect.w = x + size;
+	destRect.h = y - size;
+
+	SDL_Rect srcRect;
+	srcRect.x = 0;
+	srcRect.y = 0;
+	srcRect.w = 32;
+	srcRect.h = 32;
+	
+	std::cout << str.c_str() << std::endl;
+
+	SDL_RenderCopy(m_p_Renderer, bangText, NULL, &destRect);
+}
+
 void Game::Render()
 {
-	if (!threading_)
-	{
-		frames_++;
-	}
+	//if (!threading_)
+	//{
+	//	frames_++;
+	//}
 
 	if (m_running)
 	{

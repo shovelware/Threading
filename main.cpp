@@ -8,13 +8,21 @@
 #include "Game.h"
 #include "Player.h"
 
-typedef pair<Enemy*, SDL_Rect> enemyUpdate;
-
 //_CHANGE_ signifies a game-important variable, ctrl+f
+struct Point {
+	int x;
+	int y;
+	Point() : x(0), y(0) {}
+	Point(int x, int y) : x(x), y(y) {}
+	Point(const Point& p) : x(p.x), y(p.y) {}
+};
 
-class BoundedBuffer {
+typedef pair<Enemy*, SDL_Rect> enemyUpdate;
+typedef pair<string, Point> hudMessage;
+
+class EnemyBuffer {
 public:
-	BoundedBuffer() :
+	EnemyBuffer() :
 		front(0),
 		back(0),
 		count(0),
@@ -55,13 +63,72 @@ public:
 		SDL_SemPost(not_empty);
 	}
 
-	~BoundedBuffer() { SDL_DestroySemaphore(not_empty); SDL_DestroySemaphore(not_full); SDL_DestroyMutex(mutter); }
-	BoundedBuffer(const BoundedBuffer&) {}
+	~EnemyBuffer() { SDL_DestroySemaphore(not_empty); SDL_DestroySemaphore(not_full); SDL_DestroyMutex(mutter); }
+	EnemyBuffer(const EnemyBuffer&) {}
 
 private:
 	static const int bufsize = 4;
 	enemyUpdate buffer[bufsize];
 	
+	int front;
+	int back;
+	int count;
+
+	SDL_semaphore* not_empty;
+	SDL_semaphore* not_full;
+	SDL_mutex* mutter = SDL_CreateMutex();
+};
+
+class MessageBuffer {
+public:
+	MessageBuffer() :
+		front(0),
+		back(0),
+		count(0),
+		not_empty(SDL_CreateSemaphore(0)),
+		not_full(SDL_CreateSemaphore(bufsize))
+	{}
+
+	hudMessage take()
+	{
+		while (count == 0)
+		{
+			SDL_SemWait(not_empty);
+		}
+		if (SDL_LockMutex(mutter) == 0);
+		//CO
+		hudMessage result = make_pair(buffer[front].first, buffer[front].second);
+		front = (front + 1) % bufsize;
+		count--;
+		//OC
+		SDL_UnlockMutex(mutter);
+		SDL_SemPost(not_full);
+		return result;
+	}
+
+	void put(string m, Point p)
+	{
+		while (count == bufsize - 1)
+		{
+			SDL_SemWait(not_full);
+		}
+		if (SDL_LockMutex(mutter) == 0)
+			//CO
+			buffer[back] = std::make_pair(m, p);
+			back = (back + 1) % bufsize;
+			count++;
+			//OC
+		SDL_UnlockMutex(mutter);
+		SDL_SemPost(not_empty);
+	}
+
+	~MessageBuffer() { SDL_DestroySemaphore(not_empty); SDL_DestroySemaphore(not_full); SDL_DestroyMutex(mutter); }
+	MessageBuffer(const MessageBuffer&) {}
+	int getCount() { return count; }
+private:
+	static const int bufsize = 8;
+	hudMessage buffer[bufsize];
+
 	int front;
 	int back;
 	int count;
@@ -77,7 +144,8 @@ static SDL_mutex* mutti = SDL_CreateMutex();
 
 static SDL_semaphore* enemySem = SDL_CreateSemaphore(1);
 
-BoundedBuffer updatesBuffer = BoundedBuffer();
+EnemyBuffer updatesBuffer = EnemyBuffer();
+MessageBuffer hudBuffer = MessageBuffer();
 
 int checkEdgeFunc(void* data)
 {
@@ -227,10 +295,105 @@ int renderFunc(void* data)
 	return 24;
 }
 
+int renderHUDFunc(void* data)
+{
+	Game* g = static_cast<Game*>(data);
+
+	chrono::steady_clock clock;
+	chrono::steady_clock::time_point lastTickTime;
+	lastTickTime = clock.now();
+	const chrono::milliseconds HUDMSG = chrono::milliseconds(5000);
+	hudMessage blank = make_pair("", Point(0, 0));
+	hudMessage msg;
+	msg = blank;
+	while (g->IsRunning())
+	{
+
+		if (SDL_LockMutex(mutti) == 0)
+		{
+			if (msg.first != "")
+			{	
+				//std::cout << "hud" << std::endl;
+				g->RenderHUD(msg.first, msg.second.x, msg.second.y);
+			}
+
+			if (clock.now() > lastTickTime + HUDMSG)
+			{
+				lastTickTime += HUDMSG;
+
+				if (hudBuffer.getCount() > 0)
+				{
+					//std::cout << "duh" << std::endl;
+					lastTickTime = clock.now();
+					hudMessage msg = hudBuffer.take();
+
+				}
+
+				else msg = blank;
+			}
+
+			SDL_UnlockMutex(mutti);
+		}
+
+	}
+
+	return 9;
+}
+
+int collisionFunc(void* data)
+{
+	Game* g = static_cast<Game*>(data);
+
+	while (g->IsRunning())
+	{
+		GameObject*	p = g->getPlayer();
+		list<Enemy>& enemies = g->getEnemies();
+
+		//For each enemy
+		if (!enemies.empty())
+		for (list<Enemy>::iterator iter = enemies.begin(); iter != enemies.end(); iter++)
+		{
+			//If we need to check edg
+			if (iter->isAlive())
+			{
+				SDL_Rect pr;
+				pr.x = p->GetX();
+				pr.y = p->GetY();
+				pr.w = p->GetW();
+				pr.h = p->GetH();
+
+				SDL_Rect er;
+				er.x = iter->GetX();
+				er.y = iter->GetY();
+				er.w = iter->GetW();
+				er.h = iter->GetH();
+
+				if (SDL_HasIntersection(&pr, &er))
+				{
+					std::string msg = "";
+					float choix = rand() % 4;
+
+					if (choix < 1)
+						msg = "BAP!";
+					else if (choix < 2)
+						msg = "POW!";
+					else if (choix < 3)
+						msg = "BLIT!";
+					else
+						msg = "ZOT!";
+
+					hudBuffer.put(msg, Point(er.x + er.w / 2, er.y + er.h / 2));
+				}
+			}
+		}
+	}
+	return 11;
+}
+
 int main(int argc, char** argv)
 {
 	//ENABLE OR DISABLE THREADING
-	bool threading = false;
+	bool threading = true;
 	//_CHANGE_ HERE ^^^
 	
 	//DEBUG_MSG("Game Object Created");
@@ -253,13 +416,17 @@ int main(int argc, char** argv)
 	SDL_Thread* tRender = nullptr;
 	SDL_Thread* tProd = nullptr;
 	SDL_Thread* tCons = nullptr;
+	SDL_Thread* tHUD = nullptr;
+	SDL_Thread* tColl = nullptr;
 
 	if (threading)
 	{
-		tCheckEdge = SDL_CreateThread(checkEdgeFunc, "Edge Thread", game);
+		//tCheckEdge = SDL_CreateThread(checkEdgeFunc, "Edge Thread", game);
 		tRender = SDL_CreateThread(renderFunc, "Render Thread", game);
-		tProd = SDL_CreateThread(prodEdgeCheckFunc, "Producer Thread", game);
-		tCons = SDL_CreateThread(consEdgeCheckFunc, "Consumer Thread", game);
+		//tProd = SDL_CreateThread(prodEdgeCheckFunc, "Producer Thread", game);
+		//tCons = SDL_CreateThread(consEdgeCheckFunc, "Consumer Thread", game);
+		tHUD = SDL_CreateThread(renderHUDFunc, "HUD Thread", game);
+		tColl = SDL_CreateThread(collisionFunc, "Collision Thread", game);
 	}
 
 	//DEBUG_MSG("Game Loop Starting......");
@@ -270,6 +437,7 @@ int main(int argc, char** argv)
 			lastTickTime += TIME_PER_TICK;
 
 			game->HandleEvents();
+
 			game->Update(TIME_PER_TICK.count());
 
 			if (!threading)
